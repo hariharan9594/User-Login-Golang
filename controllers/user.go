@@ -5,8 +5,6 @@ import (
 	"UserAuth/storage"
 	"net/http"
 
-	"fmt"
-
 	"github.com/labstack/echo/v4"
 )
 
@@ -32,11 +30,14 @@ func LoginUser(c echo.Context) error {
 		return err
 	}
 	curs := storage.GetCursor()
-	err := curs.VerifyUser(user)
-	if err != nil {
-		fmt.Println("Incorrect Login details.")
-		return c.String(http.StatusCreated, "username or password doesn't match")
+	login := curs.VerifyUser(user)
+	if login["message"] == "Successfully Logged In" {
+
+		return c.JSON(http.StatusCreated, login)
 
 	}
-	return c.String(http.StatusCreated, "Logged in...")
+	/*resp := map[string]interface{}{
+		"message": "wrong username or password",
+	}*/
+	return c.JSON(http.StatusCreated, login)
 }

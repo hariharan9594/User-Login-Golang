@@ -3,9 +3,11 @@ package storage
 import (
 	"UserAuth/common"
 	"UserAuth/models"
+	"time"
 
 	"fmt"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -46,21 +48,39 @@ func (c *cursor) CreateUser(cs *models.User) (*models.User, error) {
 	return record, nil
 }
 
-func (c *cursor) VerifyUser(cs *models.User) error {
+func (c *cursor) VerifyUser(cs *models.User) map[string]interface{} {
+
 	user := new(models.User)
 	fmt.Println("Verify user cs.UserName:", cs.UserName)
 	fmt.Println("Verify user variable user:", user.UserName)
-
-	if err := c.Db.Where("user_name = ?", cs.UserName).First(user).Error; err != nil {
-		return err
+	//verify username:
+	if c.Db.Where("user_name = ?", cs.UserName).First(user).RecordNotFound() {
+		return map[string]interface{}{"message": "User not found"}
 	}
+
 	fmt.Println("after where, user.username:", user.UserName)
 	fmt.Println("after where, user.password:", user.Password)
-
-	errf := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(cs.Password))
-	if errf != nil && errf == bcrypt.ErrMismatchedHashAndPassword { //Password does not match!
-		//var resp = map[string]interface{}{"status": false, "message": "Invalid login credentials. Please try again"}
-		return errf
+	//verify Password
+	passErr := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(cs.Password))
+	if passErr != nil && passErr == bcrypt.ErrMismatchedHashAndPassword {
+		//Password does not match!
+		return map[string]interface{}{"message": "Wrong Password"}
 	}
-	return errf
+
+	//sign token
+	tokenContent := jwt.MapClaims{
+		"user":   cs.UserName,
+		"expiry": time.Now().Add(time.Minute * 100).Unix(),
+	}
+	jwtToken := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), tokenContent)
+	token, err := jwtToken.SignedString([]byte("TokenPassword"))
+	if err != nil {
+		fmt.Println("Error in token generation: ", err)
+		panic(err)
+	}
+
+	var resp = map[string]interface{}{"message": "Successfully Logged In"}
+	resp["jwt"] = token
+
+	return resp
 }
