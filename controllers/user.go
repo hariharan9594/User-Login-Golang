@@ -36,8 +36,5 @@ func LoginUser(c echo.Context) error {
 		return c.JSON(http.StatusCreated, login)
 
 	}
-	/*resp := map[string]interface{}{
-		"message": "wrong username or password",
-	}*/
 	return c.JSON(http.StatusCreated, login)
 }
